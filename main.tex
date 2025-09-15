@@ -1,0 +1,657 @@
+\documentclass{article}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage[utf8]{inputenc}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage[dvipsnames]{xcolor} %may result in an error if you are using beamer with tikz. To go around it, include usenames and dvipsnames options when defining the document class, e.g. \documentclass[usenames,dvipsnames]{beamer}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.5}
+
+\usetikzlibrary{external}
+\tikzexternalize
+\tikzsetexternalprefix{tikzexternal/}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{amsmath,amsfonts,amssymb}
+\renewcommand{\baselinestretch}{1.0}
+\usepackage{graphicx}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{color, colortbl}
+\usepackage{lscape}
+\usepackage{enumitem}
+%\usepackage{chngcntr}
+%\counterwithin{figure}{section}
+%\counterwithin{table}{section}
+\usepackage{booktabs,caption}
+\usepackage[flushleft]{threeparttable}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{\medskipamount}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{newtxtext,newtxmath}
+
+% Instead of the above, use this for arXiv:
+
+%\usepackage{txfonts}
+%\usepackage{textcomp}
+%\usepackage{eurosym}
+%\let\texteuro\euro
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\unit}[1]{\ensuremath{\mathrm{#1}}}
+\newcommand{\micron}{\mbox{\textmu m}}
+\renewcommand{\deg}{\mbox{deg}}
+\newcommand{\sqdeg}{\mbox{$\deg^2$}}
+\newcommand{\persqdeg}{\mbox{$\deg^{-2}$}}
+\newcommand{\arcmin}{\mbox{arcmin}}
+\newcommand{\sqarcmin}{\mbox{\arcmin$^2$}}
+\newcommand{\persqarcmin}{\mbox{\arcmin$^{-2}$}}
+\newcommand{\arcsec}{\mbox{arcsec}}
+\newcommand{\sqarcsec}{\mbox{\arcsec$^2$}}
+\newcommand{\persqarcsec}{\mbox{\arcsec$^{-2}$}}
+\newcommand{\sqmm}{\mbox{mm$^2$}}
+\newcommand{\deighty}{\ensuremath{d_{80}}}
+\newcommand{\Hs}{\mbox{$H_\mathrm{s}$}}
+\newcommand{\Ravg}{\mbox{$R_\mathrm{avg}$}}
+\newcommand{\Tavg}{\mbox{$T_\mathrm{avg}$}}
+\newcommand{\mm}{\mbox{mm}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\pagestyle{empty}
+
+\begin{center}
+
+{\Large \bfseries COLIBRÍ TCS Validation at OHP}
+
+\vspace{2cm}
+
+\begin{tabular}{ll}
+Prepared by:&Alan M. Watson\\
+Reviewed by:&Stéphane Basa\\
+Approved by:&Alan M. Watson\\
+%DDRAGO Reference:&Document 2\\
+COLIBRÍ Reference:&COLIBRI-UNAM-PL-13\\
+Version:&1.1\\
+Date:&5 November 2020\\
+\end{tabular}
+
+\vspace{\fill}
+
+COLIBRÍ Project\\
+Instituto de Astronom{\'\i}a\\
+Universidad Nacional Aut\'onoma de M\'exico
+
+\end{center}
+
+\newpage
+
+\clearpage
+\section*{Version History}
+
+\begin{itemize}
+\item Version 1.1 of 5 November 2020.
+
+\begin{itemize}
+    \item Minor revisions to the text.
+    \item Added a brief overview of TCS.
+\end{itemize}
+
+\item Version 1.0 of 25 October 2020
+
+\begin{itemize}
+    \item Initial version.
+\end{itemize}
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\clearpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\pagestyle{plain}
+
+\setcounter{tocdepth}{2}
+\tableofcontents
+\newpage
+
+%\listoffigures
+%\newpage
+
+%\listoftables
+%\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Introduction}
+
+TCS is the “telescope control system” for COLIBRÍ. It actually controls more than the telescope: it controls the instruments and (eventually) the dome too; it monitors conditions and determines when to open and close; it selects and executes observing blocks; it manages alerts received from the GCN notifications or manually programmed; and it archives the data in the NAS.
+
+The TCS does not handle block preparation and is independent of the reduction pipeline and the archive distribution.
+
+The TCS has been used in one form or another for 10 years at the OAN, and currently operates the RATIR, COATLI, and DDOTI telescopes. Therefore, large parts of the TCS have been extensively proven. Nevertheless, it is important to verify the TCS for COLIBRÍ, both because it contains new code (in particular to drive the mount, M2, M3, mirror covers, and derotator tunnel cover) and to ensure that the previous parts have been correctly assembled for COLIBRÍ.
+
+Most of the procedures described here can be run with only the PC supplied by LAM for the COLIBRICITO telescope. However, once the DDRAGUITO control system is installed, the software will migrate to these computers. Indeed, the “TCS” and “DDRAGUITO control system” are really simply different parts of the same software system.
+
+Some of these tests require an instrument. This can either be the OGSE (its FLI CCD can be driven by the TCS, since similar CCDs are used at RATIR, COATLI, and DDOTI) or DDRAGUITO.
+
+This document does not describe extensive tests of the interface between the TCS and the DDRAGUITO instrument. This is for two reasons. One, these interfaces have been widely tested in the laboratory prior to shipping the instrument from Mexico to France. Two, these interfaces will be widely tested on the telescope during the on-sky verification of DDRAGUITO described in an accompanying document (“DDRAGUITO On-Sky Validation at OHP”, COLIBRI-UNAM-PL-7).
+
+These procedures will be carried out by Alan Watson working remotely from Mexico City and with the help of the OHP/LAM team, who for safety will be present whenever any mechanism is moved.
+
+Section~\ref{section:report} describes the report we will provide to present the results of all of these procedures. Section~\ref{section:procedures} describes the actual procedures. Section~\ref{section:schedule} discusses the schedule for the procedures. 
+
+\section{Overview}
+
+TCS is a multi-process system with interprocess communication using sockets. This enforces abstraction boundaries and allows it to run as a distributed system.
+
+TCS is divided into many servers, each of which is a separate process. There are two main types of servers: those associated with hardware and those that coordinate higher-level tasks. Each server listens for commands on a socket and as a result of commands received performs actions or supply information. All servers can supply clients with information on their current internal state (for example, the state of mechanisms or sensors or higher-level information). Where appropriate, servers also accept commands to carry out actions at a high-level (for example, opening the observatory at the start of the night) or lower-level (for example, moving a filter wheel). The servers form a hierarchy in which an inferior server is only requested by its immediately superior server. 
+
+The TCS instrument server is generic and configurable, so the same code is used for RATIR with four detectors, COATLI with one detector, DDOTI with six detectors, and COLIBRÍ with one to three detectors.
+
+TCS is implemented almost entirely in Tcl, largely because when the project started, much of the observatory's software was already written in this language. If we were starting from scratch, we would probably have chosen Python, which is more widely known. On the other hand, this choice was not without practical benefits. Tcl has excellent support for asynchronous input and output, which is exactly what one needs in a telescope control system. Furthermore, Tcl 8.6 adds coroutines which allow one to express asynchronous programs more clearly than in the older event-driven style. We emphasize that we do not use the Tk graphics toolkit in the TCS; we simply use Tcl, without Tk, as a high-level programming language.
+
+C/C++ is used for low-level interfaces to detectors and filter wheels (since these are typically exposed by C/C++ libraries) and for astrometric calculations (as a wrapper around SLALIB).
+
+JavaScript is used for the web interface.
+
+Interprocess communication is in JSON-RPC, so it is quite possible to interface to the TCS from other programs written in languages.
+
+The code consists of about 10,000 lines of Tcl, 1000 lines of C/C++ (mainly for interfacing to detectors, filter wheels, and focusers and for writing FITS files), and 500 lines of JavaScript.
+
+
+\section{Report}
+\label{section:report}
+
+We will write reports for all procedures in the form of a sections in a single document.
+
+For each procedure, we will indicate what was actually done (which sometimes necessarily is different for what was planned), when it was done, what the results were, and whether the results were as expected and desirable.
+
+We will clearly call attention to unexpected or undesirable results.
+
+\section{Procedures}
+\label{section:procedures}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Start, Restart, Reboot, and Halt}
+
+\subsubsection{Aim}
+
+The TCS should start automatically when the computers are booted. It also has a capability to restart the software (without rebooting the computers), reboot the computers, and halt the software. This procedure will verify this facility.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Reboot the computers manually. Verify that the TCS starts.
+
+Use the TCS capability to restart, reboot, and halt. Verify that the TCS and computers behave as expected.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Verify Mount Communications}
+
+\subsubsection{Aim}
+
+Verify that the TCS is able to read parameters from the mount such as the axes positions.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Inspect the TCS mount server and the logs produced by the server.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Verify PLC Communications}
+
+\subsubsection{Aim}
+
+Verify that the TCS is able to read parameters from the PLC.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Inspect the TCS PLC server and the logs produced by the server.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Verify Sensors}
+
+\subsubsection{Aim}
+
+Verify that the TCS is able to read and log the 1-wire, PLC, mount, and other integrated sensors.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Inspect the TCS sensor server, the sensor log files, and the sensor plots produced by the TCS.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Verify Weather}
+
+\subsubsection{Aim}
+
+Verify that the TCS is able to read the COLIBRÍ weather station.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Inspect the TCS weather server, the weather log files, and the weather plots produced by the TCS.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Notify Failures}
+
+\subsubsection{Aim}
+
+The TCS has a system to notify failures by email and by sending messages to mobile telephones (using the “Pushover” system). Verify that this system is working.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Simulate a range of hardware and software errors, such as TCS servers failing and communication being lost with hardware. Verify that these failures are notified by email and to mobile telephones.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Power the Mount Up and Down}
+
+\subsubsection{Aim}
+
+Verify that the TCS is able to power up and power down the mount axes.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Issue power up and power down commands. Verify by inspection of the logs and by checking directly with the ASTELCO mount controller that the commands behave as expected.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Parking and Unparking}
+
+\subsubsection{Aim}
+
+The TCS has the concept of parking the mount. This is a safe position and for COLIBRÍ will be towards the northern horizon. When the mount is explicitly parked, it cannot (normally) move without being explicitly unparked. When the mount is unparked, it moves to a specific point, typically on the meridian towards the equator.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Park the telescope from different positions. Unpark the telescope.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Open and Close}
+
+\subsubsection{Aim}
+
+Verify that the TCS can open the telescope. This involves powering the axes, moving to the parked postion, opening the covers, and then unparking. 
+
+Verify that the TCS can close the telescope. This involves moving to the parked position and closing the covers.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Open and close the telescope from different positions.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Opening and Closing According to Conditions}
+
+\subsubsection{Aim}
+
+The TCS monitors the position of the Sun (i.e., daylight, twilight, and night) and the weather and determines whether to open and close based on these.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Disable (in software) actually opening or closing. Verify the TCS requests the system to open or close appropriately in response to real or simulated conditions.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Pointing Limits for Fixed Positions (Without Derotation)}
+
+\subsubsection{Aim}
+
+The TCS has soft limits for the azimuth and elevation axes that are just within the soft limits of the mount controller. Verify these limits.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+ Verify that the TCS respects its own soft limits by moving to fixed positions just inside those limits and attempting to move to fixed position beyond those limits. In this test, only the azimuth and elevation axes are moved; the derotator is fixed,
+ 
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Pointing Limits for Tracking (Without Derotation)}
+
+\subsubsection{Aim}
+
+The TCS has soft limits for the azimuth and elevation axes that are just within the soft limits of the mount controller. Verify these limits.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Verify that the TCS respects its own soft limits by tracking just inside those limits and observing the behavior as the mount tracks over thise limits (upon which it should stop tracking). In this test, only the azimuth and elevation axes are moved; the derotator is fixed,
+ 
+ Verify that the TCS selects the correct azimuth axis position to allow tracking for the maximum time.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Derotator Limits}
+
+\subsubsection{Aim}
+
+The TCS has soft limits for the derotator that are just within the soft limits of the mount controller. Verify these limits.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Verify that the TCS respects its own soft limits by moving just inside those limits and attempting to move just beyond those limits. Do this for both moves to fixed positions and tracking.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Move to Fixed Positions}
+
+\subsubsection{Aim}
+
+The derotator is limited to $\pm60$ degrees of motion. Thus, the TCS should normally select a derotator angle that puts the detector columns parallel to one of the cardinal directions and allows the maximum tracking time.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Move to different fixed positions. Verify that the TCS selects the correct derotator angle.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Track}
+
+\subsubsection{Aim}
+
+The derotator is limited to $\pm60$ degrees of motion. Thus, the TCS should normally select a derotator angle that puts the detector columns parallel to one of the cardinal directions and allows the maximum tracking time.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Start tracking at different fixed positions. Offset from these positions. Verify that the TCS selects the correct derotator angle after both slews and offsets.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{M2 Movement}
+
+\subsubsection{Aim}
+
+Verify that the TCS can read the position of M2 and can move it.
+
+\subsubsection{Procedure}
+
+This procedure does not require an instrument.
+
+Compare the positions of M2 as read by the TCS secondary server and as given directly by the ASTELCO mount controller.
+
+Verify that M2 can be moved under the control of the TCS.
+
+Verify the soft limits on M2.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Pointing Model}
+
+\subsubsection{Aim}
+
+The aim of this procedure is to determine, evaluate, and improve the pointing map.
+
+There are two technical possibilities for implementing the pointing model: in the TCS and in the mount controller. The project has decided to use the mount controller.
+
+\subsubsection{Procedure}
+
+This procedure requires an instrument.
+
+Determine the pointing corrections by measuring and correcting the error at different pointings. 
+
+At each pointing, start tracking. Then take short exposure. Determine the coordinates of the center of the image using the astrometry.net software. Command the telescope to offset to correct the pointing. Repeat until the error is adequate, (see below for a discussion of what adequate means in this context). Command the mount to note the correction. 
+
+Once an adequate number of pointings have been added (again, see below for a discussion of what adequate means in this context), command the telescope to calculate the pointing solution.
+
+Command the telescope to install the model.
+
+Determine the empirical error in the pointing model by measuring the pointing error at different pointings.
+
+At each pointing, start tracking. Then take a 5 second exposures in the $i$ filter. Determine the coordinates of the center of the image using the astrometry.net software. Determine the pointing error. 
+
+Once an adequate number of pointings have been made, determine the empirical distribution of the pointing error (RMS error, median error, maximum error, and plot distribution of errors on the sky).
+
+It is likely that this procedure will need to be repeated several times. Initially, one might consider a pointing model derived from perhaps 10 points and with a target error of perhaps 30 arcsec. In subsequent iterations, one would increase the number of points to 20, 40, and 80 or more and attempt to reduce the error to 1 arcsec or better.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Tracking Performance}
+
+\subsubsection{Aim}
+
+Demonstrate the long-exposure tracking performance.
+
+\subsubsection{Procedure}
+
+This procedure requires an instrument.
+
+Track different fields for one hour each. While tracking, take exposures every 5 seconds. Determine the drift on the detector.
+
+\subsubsection{Procedure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Slewing Performance}
+
+\subsubsection{Aim}
+
+Demonstrate the slewing performance (including any overheads in the TCS).
+
+\subsubsection{Procedure}
+
+This procedure does not requires an instrument.
+
+Slew from a range of positions to a range of positions and start tracking. Verify that the time to start tracking is within requirements.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Verify Selector}
+
+\subsubsection{Aim}
+
+The TCS has a selector server that selects blocks according to the position of the target, Sun, and Moon, and the time since focus. Validate these selection criteria.
+
+\subsubsection{Procedure}
+
+This procedure does not requires an instrument.
+
+Run the selector with dummy blocks with an exhaustive range of selection constraints. Verify that they are obeyed.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Verify Executor}
+
+\subsubsection{Aim}
+
+The TCS has an excutor server that coordinates the telescope and instrument. Validate the executor.
+
+\subsubsection{Procedure}
+
+This procedure requires an instrument.
+
+Run a range of blocks to exercise the executor.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Verify Data Transfer}
+
+\subsubsection{Aim}
+
+The TCS should automatically transfer data to the NAS.
+
+\subsubsection{Procedure}
+
+This procedure requires an instrument.
+
+Verify this by inspection.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Manual Alert Reception}
+
+\subsubsection{Aim}
+
+Alerts can be placed in the queue by running a command manually. Verify this.
+
+\subsubsection{Procedure}
+
+This procedure does not requires an instrument.
+
+Verify this by running the command and inspecting the results.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{GCN Alert Reception}
+
+\subsubsection{Aim}
+
+GCN notitications can cause alerts to be placed in the queue.
+
+\subsubsection{Procedure}
+
+This procedure does not requires an instrument.
+
+Verify this by monitoring GCN notices and by inspection.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{SVOM Alert Reception}
+
+\subsubsection{Aim}
+
+SVOM alerts can cause alerts to be placed in the queue.
+
+\subsubsection{Procedure}
+
+This procedure does not requires an instrument.
+
+TBD.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Calibration Blocks}
+
+\subsubsection{Aim}
+
+The TCS executes calibration blocks for biases, darks, and flats.
+
+\subsubsection{Procedure}
+
+This procedure requires an instrument.
+
+Run these blocks and verify the results.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Focus Blocks}
+
+\subsubsection{Aim}
+
+The TCS executes focus blocks to focus M2. This involves taking a series of short images at different M2 positions, estimating the FWHM in each, fitting a parabola with rejection, and then moving M2 to the minimum.
+
+There are a number of parameters to tune: magnitude, exposure time, CCD window, FWHM estimator (TCS has three), range of M2 motion. Furthermore, the TCS has two types of focus blocks: coarse focus blocks executed after opening to find the vicinity of the focus and fine focus blocks executed during the night to maintain and monitor focus. The two types of block have different parameters.
+
+\subsubsection{Procedure}
+
+This procedure requires an instrument.
+
+Run these blocks, tune the parameters, and verify the results.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Pointing Correction}
+
+\subsubsection{Aim}
+
+The TCS can carry out pointing corrections (by taking an image and running astronomy.net automatically) as part of other blocks.
+
+\subsubsection{Procedure}
+
+This procedure requires an instrument.
+
+Run blocks with pointing corrections and verify the results.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Alert Block}
+
+\subsubsection{Aim}
+
+The TCS runs a special block known as the “alert block” for alerts. Verify this block.
+
+\subsubsection{Procedure}
+
+This procedure requires an instrument.
+
+Run the alert block and inspect the results.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Science Blocks}
+
+\subsubsection{Aim}
+
+The TCS can run blocks for other non-alert science. Verify a range of these blocks.
+
+\subsubsection{Procedure}
+
+This procedure requires an instrument.
+
+Generate COLIBRI blocks corresponding to existing blocks for RATIR, COATLI, and DDOTI. Run these blocks. Inspect the results.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Schedule}
+\label{section:schedule}
+
+Where possible, we will carry out these procedures during the day and with the telescope within the enclosure to avoid putting too much strain on the OHP/LAM team. We would propose to work from 13:00 to 17:00 CET, which corresponds to 06:00 to 10:00 in Mexico City. Procedures that do not require moving the telescope can be carried out later, during the afternoon and evening in Mexico City. For some of the procedures, we will fool the TCS into believing it is twilight or night or whatever by adjusting the clocks on the TCS control computers. We would imagine requiring a total of 10 sessions spaced over three weeks.
+
+However, some of these procedures unavoidably require observations at night. These are:
+\begin{itemize}
+\item Pointing Model (1 night)
+\item Tracking Performance (1 night)
+\item Focus Blocks, Pointing Correction, Alert Block, Science Blocks (1 night)
+\end{itemize}
+Allowing an additional night as contingency, we envisage needing a total of four nights. Given the weather at OHP in the winter, obtaining this time may require considerably longer. Of course, we will take advantage of partial nights when available. To be conservative, let us assume we require two weeks to carry out these tests.
+
+Thus, we estimate that we will require about five weeks of real time to carry out these procedures.
+
+\end{document}
